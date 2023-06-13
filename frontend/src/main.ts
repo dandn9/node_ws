@@ -21,7 +21,9 @@ async function main() {
 	})
 	ws.addEventListener('open', (ev) => {
 		console.log('open', ev)
-		ws.send('MDNxd')
+		const pl = 'MDNxdqeweqwqweeqweqweqw'
+		console.log('LEN', pl.length)
+		ws.send(pl)
 	})
 	ws.addEventListener('message', (ev) => {
 		console.log('message', ev)
