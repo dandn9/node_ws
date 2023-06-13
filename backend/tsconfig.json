@@ -1,4 +1,7 @@
 {
+	"ts-node": {
+		"esm": true
+	},
 	"compilerOptions": {
 		/* Visit https://aka.ms/tsconfig to read more about this file */
 
@@ -45,6 +48,7 @@
 
 		/* Type Checking */
 		"strict": true /* Enable all strict type-checking options. */,
+
 		"skipLibCheck": true /* Skip type checking all .d.ts files. */
 	}
 }
