@@ -1,8 +1,18 @@
 import http from 'node:http'
 import crypto from 'node:crypto'
+import { buffer } from 'stream/consumers'
 
-const PORT = 3000
+const PORT = 8080
 const HOSTNAME = '127.0.0.1'
+
+enum OpCodes {
+	Continuation = 0,
+	Text = 1,
+	Binary = 2,
+	ConnectionClose = 8,
+	Ping = 9,
+	Pong = 10,
+}
 
 const server = http.createServer((req, res) => {
 	const STATUS_CODE = 426
@@ -42,25 +52,30 @@ server.on('upgrade', (req, socket, head) => {
 		const firstByte = data.readUint8(reader++)
 		console.log(firstByte)
 
-		// if ((firstByte & 0b1001_0000) != 0) {
-		// 	// message is close connection
-		// 	console.log('BYE!!')
-		// 	return
-		// }
-		// if ((firstByte & 0b0000_0001) != 1) {
-		// 	// full message has not been sent
-		// 	return
-		// }
-		// if ((firstByte & 0b1000_0000) != 0) {
-		// 	// message is text
-		// 	console.log('is text')
-		// }
-		// if ((firstByte & 0b0100_0000) != 0) {
-		// 	// message is binary
-		// 	console.log('DONT SUPPORT BINARY YET')
-		// 	return
-		// }
-		console.log('DATA')
+		/**
+		 *
+		 */
+		const opCode = firstByte & 0b0000_1111
+		const finBit = firstByte & 0b1000_0000
+
+		if (finBit === 0) {
+			// message is not done
+			return
+		}
+		if (opCode === OpCodes.ConnectionClose) {
+			// message is close connection
+
+			console.log('BYE!!')
+			return
+		}
+		if (opCode === OpCodes.Text) {
+			// message is text
+			console.log('is text')
+		}
+		if (opCode === OpCodes.Binary) {
+			console.log('is binary')
+		}
+
 		const secondByte = data.readUint8(reader++)
 		const lengthValue = secondByte - 128
 
@@ -95,19 +110,27 @@ server.on('upgrade', (req, socket, head) => {
 		const decoded = new Uint8Array(messageLength)
 		const mask = encodedData.slice(reader, reader + 4)
 		console.log(mask)
-		const message = encodedData.slice(reader + 4, reader + 4 + messageLength + 1)
-		// const encoded =
+		const encodedMessage = encodedData.slice(
+			reader + 4,
+			reader + 4 + messageLength + 1
+		)
 
 		for (let i = 0; i < messageLength; i++) {
-			decoded[i] = message[i] ^ mask[i % 4]
+			decoded[i] = encodedMessage[i] ^ mask[i % 4]
 		}
 		const result: string[] = []
 
 		for (const char of decoded) {
 			result.push(String.fromCharCode(char))
 		}
-		console.log(result)
-		console.log(result.join(''))
+		const message = result.join('')
+		console.log(message, socket.writable)
+		const returnMsg = createTextMessage('hello from server')
+
+		console.log(returnMsg)
+		socket.write(returnMsg, (error) => {
+			console.log('error', error)
+		})
 	})
 })
 
@@ -115,6 +138,59 @@ server.listen(PORT, HOSTNAME, () => {
 	console.log(`Server Started ${HOSTNAME}:${PORT}`)
 })
 
+function createTextMessage(text: string) {
+	/**
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-------+-+-------------+-------------------------------+
+     |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+     |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+     |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+     | |1|2|3|       |K|             |                               |
+     +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+     |     Extended payload length continued, if payload len == 127  |
+     + - - - - - - - - - - - - - - - +-------------------------------+
+     |                               |Masking-key, if MASK set to 1  |
+     +-------------------------------+-------------------------------+
+     | Masking-key (continued)       |          Payload Data         |
+     +-------------------------------- - - - - - - - - - - - - - - - +
+     :                     Payload Data continued ...                :
+     + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
+     |                     Payload Data continued ...                |
+     +---------------------------------------------------------------+
+
+
+	 we won't use masking keys
+	 *  
+	 */
+	let payloadValue = 0
+	let payloadLenBytes = 1
+
+	if (text.length > 125) {
+		payloadValue = 126
+		payloadLenBytes = 3
+	} else if (text.length > 65535) {
+		payloadValue = 127
+		payloadLenBytes = 9
+	} else {
+		payloadValue = text.length
+	}
+
+	const buffer = Buffer.alloc(1 + payloadLenBytes + text.length)
+
+	buffer.writeUint8(0b1000_0001, 0) // first byte opcode
+	buffer.writeUInt8(payloadValue, 1) // no mask
+
+	if (payloadLenBytes === 3) {
+		buffer.writeUInt16BE(text.length)
+	} else if (payloadLenBytes === 9) {
+		buffer.writeBigUInt64BE(BigInt(text.length))
+	}
+
+	buffer.write(text, 1 + payloadLenBytes)
+
+	return buffer
+}
 function createAcceptKey(reqKey: string) {
 	// https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API/Writing_WebSocket_servers
 	const MAGIC_STRING = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'

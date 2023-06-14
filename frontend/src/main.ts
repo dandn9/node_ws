@@ -1,7 +1,7 @@
 import './style.css'
 
 const HOSTNAME = 'localhost'
-const PORT = 3000
+const PORT = 8080
 
 async function main() {
 	// try {
@@ -21,7 +21,7 @@ async function main() {
 	})
 	ws.addEventListener('open', (ev) => {
 		console.log('open', ev)
-		const pl = 'MDNxdqeweqwqweeqweqweqw'
+		const pl = 'Hi From client'
 		console.log('LEN', pl.length)
 		ws.send(pl)
 	})
