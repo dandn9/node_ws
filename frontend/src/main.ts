@@ -1,4 +1,5 @@
 import './style.css'
+import { Message } from '../../common/interfaces'
 
 const HOSTNAME = 'localhost'
 const PORT = 8080
@@ -19,13 +20,14 @@ async function main() {
 	ws.addEventListener('close', (ev) => {
 		console.log('close', ev)
 	})
+
 	ws.addEventListener('open', (ev) => {
 		console.log('open', ev)
 		const pl = 'Hi From client'
 		console.log('LEN', pl.length)
 		ws.send(pl)
 	})
-	ws.addEventListener('message', (ev) => {
+	ws.addEventListener('message', (ev: MessageEvent<Message>) => {
 		console.log('message', ev)
 	})
 }
