@@ -1,8 +1,5 @@
 import './style.css'
-import { Message } from '../../common/interfaces'
-
-const HOSTNAME = 'localhost'
-const PORT = 8080
+import { Message, HOSTNAME, INITIAL_PORT } from '../../common'
 
 async function main() {
 	// try {
@@ -12,7 +9,7 @@ async function main() {
 	// 	console.log(e)
 	// }
 
-	const ws = new WebSocket(`ws://${HOSTNAME}:${PORT}`)
+	const ws = new WebSocket(`ws://${HOSTNAME}:${INITIAL_PORT}`)
 
 	ws.addEventListener('error', (ev) => {
 		console.log('error', ev)
