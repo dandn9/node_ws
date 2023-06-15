@@ -62,7 +62,7 @@ export default class WebSocketServer extends TypedEventEmitter {
 		})
 		this.on('close', (socket) => {
 			this.sockets.delete(socket.id)
-			console.log('REMOVING SOCKET', this.sockets.size)
+			console.log('REMOVING SOCKET', socket.id, this.sockets.size)
 		})
 		this.serverHandle.on('upgrade', (req, socket, head) => {
 			const socketId = ++this.socketCounter
@@ -125,7 +125,7 @@ export class Socket {
 
 					case OpCodes.ConnectionClose:
 						console.log('CONNECTION CLOSE')
-						this.emit('close', data)
+						this.emit('close', this, data)
 						// console.log(this)
 						break
 
