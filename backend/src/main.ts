@@ -3,11 +3,9 @@ import { INITIAL_PORT } from '../../common/constants.js'
 
 function main() {
 	const wsServer = new WebSocketServer(INITIAL_PORT)
-	wsServer.on('message', (str: string) => {
+	wsServer.on('message', async (str: string) => {
 		const response = `${str} + hi from server`
-		wsServer.send(response, (err) => {
-			console.log('SENT RESPONSE')
-		})
+		await wsServer.send(response)
 		// const { buffer, dataPointer } = wsServer.createFrame(response.length)
 		// buffer.write(response, dataPointer)
 		// wsServer.writeData(buffer)

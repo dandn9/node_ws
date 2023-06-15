@@ -18,7 +18,6 @@ interface Frame {
 	buffer: Buffer
 	inputOffset: number
 }
-type WSError = Error | null | undefined
 
 export default class WebSocketServer extends EventEmitter {
 	private serverHandle!: http.Server
@@ -91,27 +90,52 @@ export default class WebSocketServer extends EventEmitter {
 				if (opCode === OpCodes.Binary) {
 					this.emit('message', data)
 				}
+				if (opCode === OpCodes.Ping) {
+					this.send(data, OpCodes.Pong)
+					console.log('RECEIVED PING \n SENDING PONG')
+					this.emit('ping', data)
+				}
 			}
 		})
 		this.socket = socket
 	}
-	private writeData(data: Buffer, callback?: (err: WSError) => any) {
-		if (this.socket) {
-			this.socket.write(data, callback)
-		}
+	private async writeData(data: Buffer) {
+		return new Promise<void>((resolve, reject) => {
+			if (this.socket) {
+				this.socket.write(data, (ws_error) => {
+					if (ws_error) {
+						reject(ws_error)
+					} else {
+						resolve()
+					}
+				})
+			} else {
+				reject(new Error('There is no socket connection'))
+			}
+		})
 	}
-	public send(data: Buffer | string, callback?: (err: WSError) => any) {
+	public async send(
+		data: Buffer | ArrayLike<number> | string,
+		opCode?: OpCodes
+	): Promise<void> {
 		let frame: Frame
 		if (typeof data === 'string') {
-			frame = this.createFrame(data.length)
+			frame = this.createFrame(data.length, opCode ?? OpCodes.Text)
 			frame.buffer.write(data, frame.inputOffset)
 		} else {
-			frame = this.createFrame(data.byteLength)
+			frame = this.createFrame(
+				'byteLength' in data ? data.byteLength : data.length,
+				opCode ?? OpCodes.Binary
+			)
 			frame.buffer.set(data, frame.buffer.byteOffset)
 		}
-		this.writeData(frame.buffer, callback)
+		return await this.writeData(frame.buffer)
 	}
-	private createFrame(payloadLength: number, mask: boolean = false): Frame {
+	private createFrame(
+		payloadLength: number,
+		opCode: OpCodes,
+		mask: boolean = false
+	): Frame {
 		/**
       0                   1                   2                   3
       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -151,7 +175,8 @@ export default class WebSocketServer extends EventEmitter {
 
 		const buffer = Buffer.alloc(1 + payloadLenBytes + payloadLength)
 
-		buffer.writeUint8(0b1000_0001, 0) // first byte opcode
+		console.log('WRITING', opCode)
+		buffer.writeUint8(opCode + 0x80, 0) // first byte opcode
 		buffer.writeUInt8(payloadValue, 1) // no mask
 
 		if (payloadLenBytes === 3) {
