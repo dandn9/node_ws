@@ -19,10 +19,16 @@ async function main() {
 	})
 
 	ws.addEventListener('open', (ev) => {
+		console.log(ev)
+		const Message = {
+			user: 'Mario',
+			timestamp: Date.now(),
+			message: 'whadup',
+		}
 		console.log('open', ev)
 		const pl = 'Hi From client'
 		console.log('LEN', pl.length)
-		ws.send(pl)
+		ws.send(JSON.stringify(Message))
 	})
 	ws.addEventListener('message', (ev: MessageEvent<Message>) => {
 		console.log('message', ev)

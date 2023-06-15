@@ -19,15 +19,31 @@ interface Frame {
 	inputOffset: number
 }
 
-export default class WebSocketServer extends EventEmitter {
+class TypedEventEmitter extends EventEmitter {
+	// @ts-ignore
+	on(
+		event: 'message',
+		listener: (socketId: Socket, data: string | Uint8Array) => void
+	): this
+	// @ts-ignore
+	on(event: 'close', listener: (socket: Socket, data: Uint8Array) => void): this
+	// @ts-ignore
+	on(event: 'ping', listener: (socket: Socket, data: Uint8Array) => void): this
+	// @ts-ignore
+	on(event: 'open', listener: (socket: Socket) => void): this
+}
+
+export default class WebSocketServer extends TypedEventEmitter {
 	private serverHandle!: http.Server
-	private socket?: internal.Duplex
+	public sockets: Map<number, Socket>
+	public socketCounter: number
 
 	constructor(private port: number) {
 		super()
+		this.socketCounter = 0
+		this.sockets = new Map()
 		this.createServer()
 	}
-
 	private createServer() {
 		this.serverHandle = http.createServer((req, res) => {
 			const STATUS_CODE = 426
@@ -38,24 +54,40 @@ export default class WebSocketServer extends EventEmitter {
 				'Content-Type': 'text/plain',
 				Upgrade: 'websocket',
 			})
-			console.log('sending', body)
 			res.end(body)
 		})
-		this.serverHandle.on('upgrade', this.handleSocket.bind(this))
+		this.serverHandle.on('upgrade', (req, socket, head) => {
+			const socketId = ++this.socketCounter
+
+			const sock = new Socket(req, socket, head, this.emit, socketId)
+			this.sockets.set(socketId, sock)
+		})
 		this.serverHandle.listen(this.port, HOSTNAME, () => {
 			console.log(`Server Started ${HOSTNAME}:${this.port}`)
 		})
 	}
+}
 
-	private handleSocket(
+export class Socket {
+	private serverHandle!: http.Server
+	private socket?: internal.Duplex
+	private emit: EventEmitter['emit']
+	public id: number
+
+	constructor(
 		req: http.IncomingMessage,
 		socket: internal.Duplex,
-		head: Buffer
+		head: Buffer,
+		emitter: EventEmitter['emit'],
+		id: number
 	) {
+		this.socket = socket
+		this.emit = emitter
+		this.id = id
+
 		const requestKey = req.headers['sec-websocket-key']
 
 		if (!requestKey) return
-		console.log(this)
 		const acceptKey = this.createAcceptKey(requestKey)
 		const eol = '\r\n'
 		const acceptResponse = [
@@ -66,7 +98,7 @@ export default class WebSocketServer extends EventEmitter {
 		]
 
 		socket.write(acceptResponse.join(eol) + eol + eol, (err) => {
-			this.emit('open', err)
+			this.emit('open', this, err)
 		})
 		socket.on('data', (buffer: Buffer) => {
 			const processedFrame = this.processFrame(buffer)
@@ -75,30 +107,24 @@ export default class WebSocketServer extends EventEmitter {
 
 				if (opCode === OpCodes.Text) {
 					const result = this.handleText(data)
-					this.emit('message', result)
-
-					// const returnMsg = createTextMessage(`${result} + hello from server`)
-
-					// console.log(returnMsg)
-					// socket.write(returnMsg, (error) => {
-					// 	console.log('error', error)
-					// })
+					console.log('RECEIVED TEXT ', result)
+					this.emit('message', this, result)
 				}
 				if (opCode === OpCodes.ConnectionClose) {
-					this.emit('close', data)
+					this.emit('close', this, data)
 				}
 				if (opCode === OpCodes.Binary) {
-					this.emit('message', data)
+					this.emit('message', this, data)
 				}
 				if (opCode === OpCodes.Ping) {
 					this.send(data, OpCodes.Pong)
 					console.log('RECEIVED PING \n SENDING PONG')
-					this.emit('ping', data)
+					this.emit('ping', this, data)
 				}
 			}
 		})
-		this.socket = socket
 	}
+
 	private async writeData(data: Buffer) {
 		return new Promise<void>((resolve, reject) => {
 			if (this.socket) {
@@ -223,8 +249,6 @@ export default class WebSocketServer extends EventEmitter {
 			reader = 10
 		}
 
-		console.log(payloadLength, encodedData)
-
 		/* 
         decoding algo
 		 D_i = E_i XOR M_(i mod 4)
@@ -234,7 +258,6 @@ export default class WebSocketServer extends EventEmitter {
          and i is the index of the message byte to decode.decoding algo
         */
 
-		console.log('READER', reader)
 		const decodedMessage = new Uint8Array(payloadLength)
 		const maskOffset = hasMask ? 4 : 0
 
