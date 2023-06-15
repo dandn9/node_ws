@@ -1,0 +1,21 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "DEBUG",
+			"skipFiles": [],
+
+			"program": "${workspaceFolder}/backend/src/main.ts",
+			"outFiles": ["${workspaceFolder}/**/*.js"],
+			"runtimeExecutable": "/home/dan/.nvm/versions/node/v18.16.0/bin/node",
+			// "args": ["src/script.ts", "--example", "hello"],
+			"internalConsoleOptions": "openOnSessionStart"
+			// "runtimeArgs": ["--nolazy", "-r", "ts-node/register/transpile-only"]
+		}
+	]
+}

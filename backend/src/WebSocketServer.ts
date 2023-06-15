@@ -44,6 +44,7 @@ export default class WebSocketServer extends TypedEventEmitter {
 		this.sockets = new Map()
 		this.createServer()
 	}
+
 	private createServer() {
 		this.serverHandle = http.createServer((req, res) => {
 			const STATUS_CODE = 426
@@ -56,12 +57,20 @@ export default class WebSocketServer extends TypedEventEmitter {
 			})
 			res.end(body)
 		})
+		this.on('message', () => {
+			console.log('server message!!')
+		})
+		this.on('close', (socket) => {
+			this.sockets.delete(socket.id)
+			console.log('REMOVING SOCKET', this.sockets.size)
+		})
 		this.serverHandle.on('upgrade', (req, socket, head) => {
 			const socketId = ++this.socketCounter
-
-			const sock = new Socket(req, socket, head, this.emit, socketId)
+			const sock = new Socket(req, socket, head, this.emit.bind(this), socketId)
 			this.sockets.set(socketId, sock)
+			// console.log('NEW SOCKET - ', socketId, this.sockets)
 		})
+
 		this.serverHandle.listen(this.port, HOSTNAME, () => {
 			console.log(`Server Started ${HOSTNAME}:${this.port}`)
 		})
@@ -69,7 +78,6 @@ export default class WebSocketServer extends TypedEventEmitter {
 }
 
 export class Socket {
-	private serverHandle!: http.Server
 	private socket?: internal.Duplex
 	private emit: EventEmitter['emit']
 	public id: number
@@ -97,29 +105,41 @@ export class Socket {
 			`Sec-WebSocket-Accept: ${acceptKey}`,
 		]
 
-		socket.write(acceptResponse.join(eol) + eol + eol, (err) => {
+		this.socket.write(acceptResponse.join(eol) + eol + eol, (err) => {
 			this.emit('open', this, err)
 		})
-		socket.on('data', (buffer: Buffer) => {
+		this.socket.on('close', () => {
+			console.log('CLOSED SOCKET')
+		})
+		this.socket.on('data', (buffer: Buffer) => {
 			const processedFrame = this.processFrame(buffer)
 			if (processedFrame) {
 				const { data, opCode } = processedFrame
 
-				if (opCode === OpCodes.Text) {
-					const result = this.handleText(data)
-					console.log('RECEIVED TEXT ', result)
-					this.emit('message', this, result)
-				}
-				if (opCode === OpCodes.ConnectionClose) {
-					this.emit('close', this, data)
-				}
-				if (opCode === OpCodes.Binary) {
-					this.emit('message', this, data)
-				}
-				if (opCode === OpCodes.Ping) {
-					this.send(data, OpCodes.Pong)
-					console.log('RECEIVED PING \n SENDING PONG')
-					this.emit('ping', this, data)
+				switch (opCode) {
+					case OpCodes.Text:
+						const result = this.handleText(data)
+						console.log('RECEIVED TEXT ', result)
+						this.emit('message', this, result)
+						break
+
+					case OpCodes.ConnectionClose:
+						console.log('CONNECTION CLOSE')
+						this.emit('close', data)
+						// console.log(this)
+						break
+
+					case OpCodes.Binary:
+						this.emit('message', this, data)
+						break
+
+					case OpCodes.Ping:
+						this.send(data, OpCodes.Pong)
+						console.log('RECEIVED PING \n SENDING PONG')
+						this.emit('ping', this, data)
+						break
+					default:
+						console.log('OP Code not supported')
 				}
 			}
 		})
