@@ -126,7 +126,6 @@ export class Socket {
 					case OpCodes.ConnectionClose:
 						console.log('CONNECTION CLOSE')
 						this.emit('close', this, data)
-						// console.log(this)
 						break
 
 					case OpCodes.Binary:

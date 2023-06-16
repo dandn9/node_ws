@@ -7,7 +7,23 @@
 	</head>
 	<body>
 		<div id="app">
-			<main>Hi</main>
+			<main>
+				<section id="chat" class="chat"></section>
+				<section class="user-input">
+					<div class="input-control">
+						<label for="username">Username</label>
+						<input id="username" placeholder="Mario" />
+					</div>
+					<textarea
+						id="text"
+						placeholder="Type your text here"
+						class="text-input"
+						rows="10"
+						cols="40"></textarea>
+					<button id="sendbtn" class="send-btn">Send</button>
+					<p class="error hidden">Error</p>
+				</section>
+			</main>
 		</div>
 		<script type="module" src="/src/main.ts"></script>
 	</body>
