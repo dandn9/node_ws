@@ -25,13 +25,6 @@ function showError(text: string) {
 }
 
 function main() {
-	// try {
-	// 	const response = await fetch(`http://${HOSTNAME}:${PORT}`)
-	// 	console.log(response.statusText)
-	// } catch (e) {
-	// 	console.log(e)
-	// }
-
 	const usernameEl = document.querySelector('#username') as HTMLInputElement
 	const textEl = document.querySelector('#text') as HTMLTextAreaElement
 	const sendBtn = document.querySelector('#sendbtn') as HTMLButtonElement
@@ -45,7 +38,7 @@ function main() {
 		console.log('close', ev)
 	})
 
-	ws.addEventListener('open', (ev) => {
+	ws.addEventListener('open', () => {
 		const message = createMessage('A new user joined', '')
 		ws.send(JSON.stringify(message))
 	})
@@ -56,7 +49,7 @@ function main() {
 		addMessage(message, false)
 	})
 
-	sendBtn.addEventListener('click', (ev) => {
+	sendBtn.addEventListener('click', () => {
 		if (ws.readyState === ws.OPEN) {
 			const message = createMessage(textEl.value, usernameEl.value)
 			ws.send(JSON.stringify(message))

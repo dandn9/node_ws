@@ -1,6 +1,7 @@
 # A websocket server implementation
 
-(with chat example and multiple sockets)
+(with chat example and multiple sockets) <br>
+to run it, run npm run dev in both backend and frontend folders
 
 ## Sources:
 
