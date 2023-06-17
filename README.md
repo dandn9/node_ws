@@ -1,4 +1,6 @@
-# A websocket server with multiple sockets/client implementation in node with a chat example
+# A websocket server implementation
+
+(with chat example and multiple sockets)
 
 ## Sources:
 

@@ -9,12 +9,17 @@ function main() {
 		console.log('MAIN CLOSE')
 	})
 
-	wsServer.on('message', async (sock, str) => {
-		const response = `${parseMessage(str.toString())} + hi from server`
-		await sock.send(response)
-		// const { buffer, dataPointer } = wsServer.createFrame(response.length)
-		// buffer.write(response, dataPointer)
-		// wsServer.writeData(buffer)
+	wsServer.on('message', async (sender_sock, str) => {
+		if (typeof str === 'string') {
+			const message = parseMessage(str)
+			if (message) {
+				wsServer.sockets.forEach((sock) => {
+					if (sock !== sender_sock) {
+						sock.send(JSON.stringify(message))
+					}
+				})
+			}
+		}
 	})
 }
 

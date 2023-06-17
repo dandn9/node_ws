@@ -57,9 +57,6 @@ export default class WebSocketServer extends TypedEventEmitter {
 			})
 			res.end(body)
 		})
-		this.on('message', () => {
-			console.log('server message!!')
-		})
 		this.on('close', (socket) => {
 			this.sockets.delete(socket.id)
 			console.log('REMOVING SOCKET', socket.id, this.sockets.size)
@@ -68,7 +65,6 @@ export default class WebSocketServer extends TypedEventEmitter {
 			const socketId = ++this.socketCounter
 			const sock = new Socket(req, socket, head, this.emit.bind(this), socketId)
 			this.sockets.set(socketId, sock)
-			// console.log('NEW SOCKET - ', socketId, this.sockets)
 		})
 
 		this.serverHandle.listen(this.port, HOSTNAME, () => {
